@@ -7,6 +7,7 @@ import android.security.KeyPairGeneratorSpec;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.support.annotation.NonNull;
+import android.text.TextUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -187,7 +188,7 @@ public class Store extends ErrorHandler {
         if (Utils.lowerThenMarshmallow()) {
             result = getSymmetricKeyFromDefaultKeyStore(alias, password);
         } else {
-            result = getSymmetricKeyFromAndroidtKeyStore(alias);
+            result = getSymmetricKeyFromAndroidKeyStore(alias, password);
         }
         return result;
     }
@@ -272,8 +273,8 @@ public class Store extends ErrorHandler {
         try {
             KeyPair keyPair = createAsymmetricKey(keyProps);
             PrivateKey key = keyPair.getPrivate();
-            X509Certificate certificate = keyToCertificateReflection(keyPair, keyProps);
             KeyStore keyStore = createDefaultKeyStore();
+	        X509Certificate certificate = keyToCertificateReflection(keyPair, keyProps);
 
             keyStore.setKeyEntry(keyProps.mAlias, key, keyProps.mPassword, new Certificate[]{certificate});
             keyStore.store(new FileOutputStream(mKeystoreFile), mKeystorePassword);
@@ -428,6 +429,8 @@ public class Store extends ErrorHandler {
                 .setStartDate(keyProps.mStartDate)
                 .setEndDate(keyProps.mEndDate);
 
+        if (!TextUtils.isEmpty(new String(keyProps.mPassword)))
+	        builder.setEncryptionRequired();
         if (Utils.biggerThenJellyBean()) {
             builder.setKeySize(keyProps.mKeySize);
         }
@@ -508,11 +511,11 @@ public class Store extends ErrorHandler {
         return result;
     }
 
-    private SecretKey getSymmetricKeyFromAndroidtKeyStore(@NonNull String alias) {
+    private SecretKey getSymmetricKeyFromAndroidKeyStore(@NonNull String alias, char[] password) {
         SecretKey result = null;
         try {
             KeyStore keyStore = createAndroidKeystore();
-            result = (SecretKey) keyStore.getKey(alias, null);
+            result = (SecretKey) keyStore.getKey(alias, password);
         } catch (KeyStoreException | CertificateException | IOException | NoSuchAlgorithmException | UnrecoverableEntryException e) {
             onException(e);
         }
